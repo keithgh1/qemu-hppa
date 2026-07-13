@@ -1,3 +1,54 @@
+=============================
+Keith's Fork and what it does
+=============================
+
+This fork carries a rewrite of QEMU's NCR 53C710 SCSI controller model
+(``hw/scsi/ncr53c710.c``) and its LASI glue. The existing upstream 53C710
+model does not fully support the ``-M 715`` machine type, particularly when
+running HP-UX 10.20. This includes HP-UX Ignite (16700A) install media, which
+drive the controller through the LASI 710 in ways the upstream model does not
+handle.
+
+The 53C710 executes SCSI SCRIPTS, a small program the guest driver loads into
+host memory and the controller runs. HP-UX 10.20 exercises paths the upstream
+model does not implement completely: disconnect and reselect for overlapped
+tagged commands, asynchronous completion delivery matching how the real chip
+behaves rather than reentrant delivery inside the interpreter, and the LASI
+interrupt behavior the HP-UX driver depends on. The rewrite derives its engine
+from QEMU's actively maintained LSI53C895A model and adapts it to the 53C710:
+its register map, single-byte interrupt model, big-endian SCRIPTS and
+table-indirect fetch (the part sits on the big-endian PA-RISC LASI bus), and
+24-bit DMA counts. Behavior follows the NCR 53C710 Data Manual and
+Programmer's Guide.
+
+**What has been tested**
+
+* HP-UX 10.20 installs and reboots into the installed system, on both the
+  Ignite (16700A) media and a software install that overlaps tagged commands.
+* Linux (lasi700 / 53c700) installs and boots Debian off the 710.
+* NetBSD/hppa 9.4 and 10.1 (osiop) boot and enumerate disk and CD-ROM.
+
+The companion LASI interrupt controller fix has already been merged upstream.
+The device rewrite is the remaining piece, and lives on the ``ncr710-rewrite``
+branch of this fork.
+
+=============
+Upstream Push
+=============
+
+I have worked to upstream this rewrite into QEMU, and I have the support of
+Helge Deller, the hppa maintainer. Some reviewers on the mailing list consider
+the rewrite too large to review comfortably as a single change, which is a
+reasonable concern for a change of this size.
+
+I proposed decomposing it into a series of ten or more smaller patches.
+Because that decomposition has not yet been agreed as an acceptable approach,
+I have held off reworking the code to fit it. The model is complete and
+tested, and restructuring working code into a bisectable multi-patch series is
+a substantial effort. I would rather settle the review approach first and then
+do that work once than rework it speculatively. I am glad to proceed as soon
+as there is agreement on the shape of the series.
+
 ===========
 QEMU README
 ===========
